@@ -34,7 +34,7 @@ class AppResponse {
     }
   }
 
-  static invalidInput(BuildContext context, String, messageBody) {
+  static invalidInput(BuildContext context, String messageBody) {
     Map errors = jsonDecode(messageBody)['errors'];
 
     showDialog(

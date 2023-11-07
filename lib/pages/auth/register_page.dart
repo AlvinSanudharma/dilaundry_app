@@ -1,27 +1,92 @@
 import 'package:d_button/d_button.dart';
+import 'package:d_info/d_info.dart';
 import 'package:d_input/d_input.dart';
 import 'package:d_view/d_view.dart';
 import 'package:dilaundry_app/config/app_assets.dart';
 import 'package:dilaundry_app/config/app_colors.dart';
 import 'package:dilaundry_app/config/app_constants.dart';
+import 'package:dilaundry_app/config/app_response.dart';
+import 'package:dilaundry_app/config/failure.dart';
+import 'package:dilaundry_app/datasources/user_datasource.dart';
+import 'package:dilaundry_app/providers/register_provider.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class RegisterPage extends StatefulWidget {
+class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
   @override
-  State<RegisterPage> createState() => _RegisterPageState();
+  ConsumerState<RegisterPage> createState() => _RegisterPageState();
 }
 
-class _RegisterPageState extends State<RegisterPage> {
+class _RegisterPageState extends ConsumerState<RegisterPage> {
   final edtUsername = TextEditingController();
   final edtEmail = TextEditingController();
   final edtPassword = TextEditingController();
 
   final formKey = GlobalKey<FormState>();
 
-  execute() {}
+  execute() {
+    bool validInput = formKey.currentState!.validate();
+
+    if (!validInput) return;
+
+    setRegisterStatus(ref, 'Loading');
+
+    UserDatasource.register(edtUsername.text, edtEmail.text, edtEmail.text)
+        .then((value) {
+      String newStatus = '';
+
+      value.fold((failure) {
+        switch (failure.runtimeType) {
+          case ServerFailure:
+            newStatus = 'Server Error';
+
+            DInfo.toastError(newStatus);
+            break;
+          case NotFoundFailure:
+            newStatus = 'Error Not Found';
+
+            DInfo.toastError(newStatus);
+            break;
+          case ForbiddenFailure:
+            newStatus = 'You don\' have access';
+
+            DInfo.toastError(newStatus);
+            break;
+          case BadRequestFailure:
+            newStatus = 'Bad Request';
+
+            DInfo.toastError(newStatus);
+            break;
+          case InvalidInputFailure:
+            newStatus = 'Invalid Input';
+
+            AppResponse.invalidInput(context, failure.message ?? '{}');
+            break;
+          case UnauthorizeFailure:
+            newStatus = 'Unauthorized';
+
+            DInfo.toastError(newStatus);
+            break;
+          default:
+            newStatus = 'Request Error';
+
+            DInfo.toastError(newStatus);
+
+            newStatus = failure.message ?? '-';
+            break;
+        }
+
+        setRegisterStatus(ref, newStatus);
+      }, (data) {
+        DInfo.toastSuccess('Register Success');
+
+        setRegisterStatus(ref, 'Register Success');
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -93,6 +158,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               Expanded(
                                 child: DInput(
                                   controller: edtUsername,
+                                  validator: (input) =>
+                                      input == '' ? 'Don\' Empty' : null,
                                   fillColor: Colors.white70,
                                   hint: 'Username',
                                   radius: BorderRadius.circular(10),
@@ -120,6 +187,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               Expanded(
                                 child: DInput(
                                   controller: edtEmail,
+                                  validator: (input) =>
+                                      input == '' ? 'Don\' Empty' : null,
                                   fillColor: Colors.white70,
                                   hint: 'Email',
                                   radius: BorderRadius.circular(10),
@@ -147,6 +216,8 @@ class _RegisterPageState extends State<RegisterPage> {
                               Expanded(
                                 child: DInputPassword(
                                   controller: edtPassword,
+                                  validator: (input) =>
+                                      input == '' ? 'Don\' Empty' : null,
                                   fillColor: Colors.white70,
                                   hint: 'Password',
                                   radius: BorderRadius.circular(10),
@@ -175,12 +246,20 @@ class _RegisterPageState extends State<RegisterPage> {
                                 ),
                               ),
                               DView.spaceWidth(10),
-                              Expanded(
-                                  child: ElevatedButton(
-                                      onPressed: () => execute(),
-                                      style: const ButtonStyle(
-                                          alignment: Alignment.centerLeft),
-                                      child: const Text('Register')))
+                              Expanded(child: Consumer(builder: (_, wiRef, __) {
+                                String status =
+                                    wiRef.watch(registerStatusProvider);
+
+                                if (status == 'Loading') {
+                                  return DView.loadingCircle();
+                                }
+
+                                return ElevatedButton(
+                                    onPressed: () => execute(),
+                                    style: const ButtonStyle(
+                                        alignment: Alignment.centerLeft),
+                                    child: const Text('Register'));
+                              }))
                             ],
                           ),
                         )
