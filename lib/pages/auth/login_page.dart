@@ -6,22 +6,26 @@ import 'package:dilaundry_app/config/app_assets.dart';
 import 'package:dilaundry_app/config/app_colors.dart';
 import 'package:dilaundry_app/config/app_constants.dart';
 import 'package:dilaundry_app/config/app_response.dart';
+import 'package:dilaundry_app/config/app_session.dart';
 import 'package:dilaundry_app/config/failure.dart';
+import 'package:dilaundry_app/config/nav.dart';
 import 'package:dilaundry_app/datasources/user_datasource.dart';
+import 'package:dilaundry_app/pages/auth/register_page.dart';
+import 'package:dilaundry_app/pages/dashboard_page.dart';
+import 'package:dilaundry_app/providers/login_provider.dart';
 import 'package:dilaundry_app/providers/register_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class RegisterPage extends ConsumerStatefulWidget {
-  const RegisterPage({super.key});
+class LoginPage extends ConsumerStatefulWidget {
+  const LoginPage({super.key});
 
   @override
-  ConsumerState<RegisterPage> createState() => _RegisterPageState();
+  ConsumerState<LoginPage> createState() => _LoginPageState();
 }
 
-class _RegisterPageState extends ConsumerState<RegisterPage> {
-  final edtUsername = TextEditingController();
+class _LoginPageState extends ConsumerState<LoginPage> {
   final edtEmail = TextEditingController();
   final edtPassword = TextEditingController();
 
@@ -32,10 +36,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
     if (!validInput) return;
 
-    setRegisterStatus(ref, 'Loading');
+    setLoginStatus(ref, 'Loading');
 
-    UserDatasource.register(edtUsername.text, edtEmail.text, edtPassword.text)
-        .then((value) {
+    UserDatasource.login(edtEmail.text, edtPassword.text).then((value) {
       String newStatus = '';
 
       value.fold((failure) {
@@ -66,7 +69,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             AppResponse.invalidInput(context, failure.message ?? '{}');
             break;
           case UnauthorizeFailure:
-            newStatus = 'Unauthorized';
+            newStatus = 'Login Failed';
 
             DInfo.toastError(newStatus);
             break;
@@ -79,11 +82,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
             break;
         }
 
-        setRegisterStatus(ref, newStatus);
-      }, (data) {
-        DInfo.toastSuccess('Register Success');
+        setLoginStatus(ref, newStatus);
+      }, (result) {
+        AppSession.setUser(result['data']);
+        AppSession.setBearerToken(result['token']);
 
-        setRegisterStatus(ref, 'Register Success');
+        DInfo.toastSuccess('Login Success');
+
+        setLoginStatus(ref, 'Login Success');
+
+        Nav.replace(context, const DashboardPage());
       });
     });
   }
@@ -140,34 +148,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                     key: formKey,
                     child: Column(
                       children: [
-                        IntrinsicHeight(
-                          child: Row(
-                            children: [
-                              AspectRatio(
-                                aspectRatio: 1,
-                                child: Material(
-                                  color: Colors.white70,
-                                  borderRadius: BorderRadius.circular(10),
-                                  child: const Icon(
-                                    Icons.person,
-                                    color: Colors.green,
-                                  ),
-                                ),
-                              ),
-                              DView.spaceWidth(10),
-                              Expanded(
-                                child: DInput(
-                                  controller: edtUsername,
-                                  validator: (input) =>
-                                      input == '' ? 'Don\' Empty' : null,
-                                  fillColor: Colors.white70,
-                                  hint: 'Username',
-                                  radius: BorderRadius.circular(10),
-                                ),
-                              )
-                            ],
-                          ),
-                        ),
                         DView.spaceHeight(16),
                         IntrinsicHeight(
                           child: Row(
@@ -233,12 +213,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               AspectRatio(
                                 aspectRatio: 1,
                                 child: DButtonFlat(
-                                  onClick: () => Navigator.pop(context),
+                                  onClick: () =>
+                                      Nav.push(context, const RegisterPage()),
                                   padding: const EdgeInsets.all(0),
                                   radius: 10,
                                   mainColor: Colors.white70,
                                   child: const Text(
-                                    'LOG',
+                                    'REG',
                                     style: TextStyle(
                                         color: Colors.green,
                                         fontWeight: FontWeight.bold),
@@ -248,17 +229,19 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               DView.spaceWidth(10),
                               Expanded(child: Consumer(builder: (_, wiRef, __) {
                                 String status =
-                                    wiRef.watch(registerStatusProvider);
+                                    wiRef.watch(loginStatusProvider);
 
                                 if (status == 'Loading') {
                                   return DView.loadingCircle();
                                 }
 
                                 return ElevatedButton(
-                                    onPressed: () => execute(),
+                                    onPressed: () {
+                                      execute();
+                                    },
                                     style: const ButtonStyle(
                                         alignment: Alignment.centerLeft),
-                                    child: const Text('Register'));
+                                    child: const Text('Login'));
                               }))
                             ],
                           ),

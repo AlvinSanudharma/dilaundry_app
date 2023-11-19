@@ -1,5 +1,9 @@
+import 'package:d_view/d_view.dart';
 import 'package:dilaundry_app/config/app_colors.dart';
+import 'package:dilaundry_app/config/app_session.dart';
+import 'package:dilaundry_app/pages/auth/login_page.dart';
 import 'package:dilaundry_app/pages/auth/register_page.dart';
+import 'package:dilaundry_app/pages/dashboard_page.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,6 +38,18 @@ class MainApp extends StatelessWidget {
                         EdgeInsets.symmetric(horizontal: 16, vertical: 14)),
                     textStyle: const MaterialStatePropertyAll(
                         TextStyle(fontSize: 15))))),
-        home: const RegisterPage());
+        home: FutureBuilder(
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return DView.loadingCircle();
+            }
+
+            if (snapshot.data == null) {
+              return const LoginPage();
+            }
+            return const DashboardPage();
+          },
+          future: AppSession.getUser(),
+        ));
   }
 }
